@@ -22,7 +22,3 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-
-screenshots/
-src/assets/*.png
-src/assets/images/*.png
