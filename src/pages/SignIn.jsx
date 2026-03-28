@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { useDispatch, useSelector } from 'react-redux'
+import { signinUser, clearError } from '@/store/slices/authSlice'
 import logoLight from '@/assets/logo/unyplus-logo-light.png'
 
 // ── Decorative left-panel background ─────────────────────────────────────────
@@ -216,12 +218,17 @@ function AuthInput({ type = 'text', placeholder, value, onChange, hasError }) {
 // ── SignIn Page ───────────────────────────────────────────────────────────────
 export default function SignIn() {
   const navigate = useNavigate()
+  const dispatch = useDispatch()
+  const { status, error: apiError } = useSelector((state) => state.auth)
+  const loading = status === 'loading'
 
-  const [form, setForm] = useState({ email: '', password: '' })
+  const [form, setForm]     = useState({ email: '', password: '' })
   const [errors, setErrors] = useState({})
-  const [loading, setLoading] = useState(false)
 
-  const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
+  const set = (key) => (e) => {
+    setForm((f) => ({ ...f, [key]: e.target.value }))
+    if (apiError) dispatch(clearError())
+  }
 
   const validate = () => {
     const e = {}
@@ -238,7 +245,7 @@ export default function SignIn() {
     return e
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     const errs = validate()
     if (Object.keys(errs).length > 0) {
@@ -246,12 +253,10 @@ export default function SignIn() {
       return
     }
     setErrors({})
-    setLoading(true)
-    // Simulated async auth
-    setTimeout(() => {
-      setLoading(false)
+    const result = await dispatch(signinUser({ email: form.email, password: form.password }))
+    if (signinUser.fulfilled.match(result)) {
       navigate('/dashboard')
-    }, 1400)
+    }
   }
 
   return (
@@ -335,6 +340,13 @@ export default function SignIn() {
                 hasError={!!errors.password}
               />
             </Field>
+
+            {/* API error */}
+            {apiError && (
+              <p style={{ color: '#EA3929', fontSize: '13px', textAlign: 'center', margin: '0' }}>
+                {apiError}
+              </p>
+            )}
 
             {/* Submit */}
             <button

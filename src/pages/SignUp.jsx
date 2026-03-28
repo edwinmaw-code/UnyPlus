@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { useDispatch, useSelector } from 'react-redux'
+import { signupUser, clearError } from '@/store/slices/authSlice'
 import logoLight from '@/assets/logo/unyplus-logo-light.png'
 
 // ── Decorative left-panel background ─────────────────────────────────────────
@@ -221,7 +223,10 @@ function AuthInput({ type = 'text', placeholder, value, onChange, hasError }) {
 
 // ── SignUp Page ───────────────────────────────────────────────────────────────
 export default function SignUp() {
-  const navigate = useNavigate()
+  const navigate  = useNavigate()
+  const dispatch  = useDispatch()
+  const { status, error: apiError } = useSelector((state) => state.auth)
+  const loading = status === 'loading'
 
   const [form, setForm] = useState({
     firstName: '',
@@ -231,9 +236,11 @@ export default function SignUp() {
     confirmPassword: '',
   })
   const [errors, setErrors] = useState({})
-  const [loading, setLoading] = useState(false)
 
-  const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
+  const set = (key) => (e) => {
+    setForm((f) => ({ ...f, [key]: e.target.value }))
+    if (apiError) dispatch(clearError())
+  }
 
   const validate = () => {
     const e = {}
@@ -257,7 +264,7 @@ export default function SignUp() {
     return e
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     const errs = validate()
     if (Object.keys(errs).length > 0) {
@@ -265,12 +272,11 @@ export default function SignUp() {
       return
     }
     setErrors({})
-    setLoading(true)
-    // Simulated async auth
-    setTimeout(() => {
-      setLoading(false)
+    const name   = `${form.firstName.trim()} ${form.lastName.trim()}`
+    const result = await dispatch(signupUser({ name, email: form.email, password: form.password }))
+    if (signupUser.fulfilled.match(result)) {
       navigate('/onboarding')
-    }, 1400)
+    }
   }
 
   return (
@@ -366,6 +372,13 @@ export default function SignUp() {
                 hasError={!!errors.confirmPassword}
               />
             </Field>
+
+            {/* API error */}
+            {apiError && (
+              <p style={{ color: '#EA3929', fontSize: '13px', textAlign: 'center', margin: '0' }}>
+                {apiError}
+              </p>
+            )}
 
             {/* Submit */}
             <button

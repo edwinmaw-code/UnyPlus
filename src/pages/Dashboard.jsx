@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { useDispatch, useSelector } from 'react-redux'
+import { fetchTimetable } from '@/store/slices/timetableSlice'
+import { fetchReminders, completeReminder, deleteReminder } from '@/store/slices/remindersSlice'
 import {
   LayoutGrid,
   AlignLeft,
@@ -64,8 +67,15 @@ function SideIcon({ icon: Icon, active = false, onClick }) {
 // ────────────────────────────────────────────────────────────────────────────
 // LECTURE CARD
 // ────────────────────────────────────────────────────────────────────────────
-function LectureCard({ ongoing, time }) {
+function LectureCard({ lecture, ongoing, time }) {
   const pad = (n) => String(n).padStart(2, '0')
+
+  const courseName = lecture?.courseName || (ongoing ? 'Ongoing Class' : 'Upcoming Class')
+  const startTime  = lecture?.startTime  || '--:--'
+  const lecturer   = lecture?.lecturer   || 'TBD'
+  const hall       = lecture?.hall       || 'TBD'
+  const duration   = lecture?.duration   ? `${lecture.duration} Hour${lecture.duration !== 1 ? 's' : ''}` : '--'
+
   return (
     <div
       className={`flex-1 rounded-3xl p-5 relative ${
@@ -76,7 +86,7 @@ function LectureCard({ ongoing, time }) {
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-2">
           <CheckCircle2 size={17} className="text-[#050505]" strokeWidth={2.5} />
-          <span className="font-black text-[#050505] text-[15px] tracking-tight">DCIT 105</span>
+          <span className="font-black text-[#050505] text-[15px] tracking-tight">{courseName}</span>
         </div>
         <button className="text-[#666] hover:text-[#050505] p-0.5">
           <MoreHorizontal size={17} />
@@ -88,21 +98,21 @@ function LectureCard({ ongoing, time }) {
         <div className="flex items-center gap-5 text-[12px] text-[#444]">
           <div className="flex items-center gap-1.5">
             <Clock size={12} className="text-[#555]" />
-            <span>10:00am - 12:00pm</span>
+            <span>{startTime}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <Users size={12} className="text-[#555]" />
-            <span>Mr. Mark Mensah</span>
+            <span>{lecturer}</span>
           </div>
         </div>
         <div className="flex items-center gap-5 text-[12px] text-[#444]">
           <div className="flex items-center gap-1.5">
             <MapPin size={12} className="text-[#555]" />
-            <span>Mensah Saba Hall</span>
+            <span>{hall}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <Timer size={12} className="text-[#555]" />
-            <span>{ongoing ? '2' : '3'}Hours</span>
+            <span>{duration}</span>
           </div>
         </div>
       </div>
@@ -144,8 +154,12 @@ const TASK_COLORS = {
   red:    'bg-[#FF4D4D]',
 }
 
-function TaskItem({ color, completed, isLast }) {
+function TaskItem({ title, datetime, completed, color, isLast, onComplete, onDelete }) {
   const circleBg = TASK_COLORS[color] ?? TASK_COLORS.blue
+  const timeStr  = datetime
+    ? new Date(datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    : null
+
   return (
     <div className="relative flex items-start gap-3 pb-3">
       {/* Vertical connector line */}
@@ -167,17 +181,28 @@ function TaskItem({ color, completed, isLast }) {
       {/* Card */}
       <div className="flex-1 flex items-center justify-between bg-[#F3F3F3] rounded-2xl px-3 py-2.5">
         <div>
-          <p className="text-[13px] font-semibold text-[#050505] leading-none">Submit Group Project</p>
-          <div className="flex items-center gap-1 mt-1">
-            <Clock size={11} className="text-[#999]" />
-            <span className="text-[11px] text-[#999]">10:00am</span>
-          </div>
+          <p className={`text-[13px] font-semibold leading-none ${completed ? 'text-[#AAA] line-through' : 'text-[#050505]'}`}>
+            {title}
+          </p>
+          {timeStr && (
+            <div className="flex items-center gap-1 mt-1">
+              <Clock size={11} className="text-[#999]" />
+              <span className="text-[11px] text-[#999]">{timeStr}</span>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-[18px] h-[18px] rounded-full border-2 border-[#D0D0D0]" />
-          <button className="text-[#BBB] hover:text-[#666]">
-            <MoreHorizontal size={15} />
-          </button>
+          {!completed && onComplete && (
+            <button
+              onClick={onComplete}
+              className="w-[18px] h-[18px] rounded-full border-2 border-[#D0D0D0] hover:border-[#9B87F5] transition-colors"
+            />
+          )}
+          {onDelete && (
+            <button className="text-[#BBB] hover:text-[#666]" onClick={onDelete}>
+              <MoreHorizontal size={15} />
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -366,13 +391,7 @@ function ThemeToggle({ dark, onToggle }) {
 // ────────────────────────────────────────────────────────────────────────────
 // DASHBOARD PAGE
 // ────────────────────────────────────────────────────────────────────────────
-const TASKS = [
-  { color: 'blue',   completed: true  },
-  { color: 'purple', completed: false },
-  { color: 'red',    completed: false },
-  { color: 'blue',   completed: false },
-  { color: 'purple', completed: false },
-]
+const TASK_COLOR_CYCLE = ['blue', 'purple', 'red', 'blue', 'purple']
 
 const NAV_ITEMS = [
   { id: 'dashboard', icon: LayoutGrid },
@@ -381,13 +400,29 @@ const NAV_ITEMS = [
 ]
 
 export default function Dashboard() {
-  const [dark, setDark]       = useState(false)
+  const dispatch   = useDispatch()
+  const user       = useSelector((state) => state.auth.user)
+  const lectures   = useSelector((state) => state.timetable.lectures)
+  const reminders  = useSelector((state) => state.reminders.items)
+
+  const [dark, setDark]           = useState(false)
   const [activeNav, setActiveNav] = useState('dashboard')
   const time = useCountdown(4, 27, 54)
+
+  // Fetch timetable and reminders on mount
+  useEffect(() => {
+    dispatch(fetchTimetable())
+    dispatch(fetchReminders())
+  }, [dispatch])
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', dark)
   }, [dark])
+
+  const firstName  = user?.name?.split(' ')[0] || 'Student'
+  // Determine greeting based on current hour
+  const hour       = new Date().getHours()
+  const greeting   = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
 
   return (
     <div className={`flex h-screen w-screen overflow-hidden ${dark ? 'dark' : ''}`} style={{ minWidth: '1280px' }}>
@@ -429,7 +464,7 @@ export default function Dashboard() {
           <SideIcon icon={Settings} />
           <div className="w-9 h-9 rounded-full overflow-hidden ring-2 ring-[#2A2A2A]">
             <div className="w-full h-full bg-gradient-to-br from-[#A6DDFF] to-[#CDC7F9] flex items-center justify-center">
-              <span className="text-[#050505] font-black text-sm">A</span>
+              <span className="text-[#050505] font-black text-sm">{firstName[0].toUpperCase()}</span>
             </div>
           </div>
         </div>
@@ -442,7 +477,7 @@ export default function Dashboard() {
         <header className="flex items-center justify-between px-8 pt-6 pb-4 flex-shrink-0">
           <div>
             <h1 className="text-[30px] font-black text-[#050505] dark:text-white tracking-tight leading-none">
-              Good morning, Amanda!
+              {greeting}, {firstName}!
             </h1>
             <p className="text-[13px] text-[#888] dark:text-[#AAA] mt-1.5 font-medium">
               Small progress today leads to big results tomorrow.
@@ -482,8 +517,8 @@ export default function Dashboard() {
 
             {/* Lecture cards row */}
             <div className="flex gap-4 flex-shrink-0">
-              <LectureCard ongoing={true}  time={time} />
-              <LectureCard ongoing={false} time={time} />
+              <LectureCard lecture={lectures[0]} ongoing={true}  time={time} />
+              <LectureCard lecture={lectures[1]} ongoing={false} time={time} />
             </div>
 
             {/* Daily tasks + Calendar row */}
@@ -502,14 +537,22 @@ export default function Dashboard() {
                 </div>
 
                 <div className="flex-1 overflow-y-auto pr-1">
-                  {TASKS.map((task, i) => (
-                    <TaskItem
-                      key={i}
-                      color={task.color}
-                      completed={task.completed}
-                      isLast={i === TASKS.length - 1}
-                    />
-                  ))}
+                  {reminders.length === 0 ? (
+                    <p className="text-[13px] text-[#AAA] text-center mt-8">No reminders yet.</p>
+                  ) : (
+                    reminders.map((reminder, i) => (
+                      <TaskItem
+                        key={reminder._id}
+                        title={reminder.title}
+                        datetime={reminder.datetime}
+                        completed={reminder.isCompleted}
+                        color={TASK_COLOR_CYCLE[i % TASK_COLOR_CYCLE.length]}
+                        isLast={i === reminders.length - 1}
+                        onComplete={() => dispatch(completeReminder(reminder._id))}
+                        onDelete={() => dispatch(deleteReminder(reminder._id))}
+                      />
+                    ))
+                  )}
                 </div>
               </div>
 
