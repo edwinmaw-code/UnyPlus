@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import logoLight from '@/assets/logo/Unyplus-logo-light.png'
+import logoLight from '@/assets/logo/unyplus-logo-light.png'
 
 // ── Decorative left-panel background ─────────────────────────────────────────
 function LeftPanel() {

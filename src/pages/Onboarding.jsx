@@ -5,7 +5,7 @@ import {
   Check, Search, Upload, FileText, X,
   BookOpen, GraduationCap, ChevronDown, Sparkles,
 } from 'lucide-react'
-import logoPrimary from '@/assets/logo/Unyplus-logo-primary.png'
+import logoPrimary from '@/assets/logo/unyplus-logo-primary.png'
 
 // ── University icon loader (Vite glob) ────────────────────────────────────────
 const coloredIconModules = import.meta.glob(

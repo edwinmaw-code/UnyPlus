@@ -19,7 +19,7 @@ import {
   Timer,
 } from 'lucide-react'
 
-import logoIcon from '@/assets/logo/Unyplus-icon.png'
+import logoIcon from '@/assets/logo/unyplus-icon.png'
 import newsImage from '@/assets/images/News-card-1.png'
 import letGoImage from '@/assets/images/let-go-image.png'
 

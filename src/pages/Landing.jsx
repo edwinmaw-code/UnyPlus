@@ -11,9 +11,9 @@ import {
 import TestimonialSlider from '@/components/ui/testimonial-slider'
 
 // ── Brand Assets ──────────────────────────────────────────────────────────────
-import logoPrimary   from '@/assets/logo/Unyplus-logo-primary.png'
-import logoLight     from '@/assets/logo/Unyplus-logo-light.png'
-import logoIcon      from '@/assets/logo/Unyplus-icon.png'
+import logoPrimary   from '@/assets/logo/unyplus-logo-primary.png'
+import logoLight     from '@/assets/logo/unyplus-logo-light.png'
+import logoIcon      from '@/assets/logo/unyplus-icon.png'
 import heroStudent   from '@/assets/images/Unyplus-hero-happy-student.png'
 import phoneMain     from '@/assets/images/Unyplus-phone-Main.png'
 import phoneHomepage from '@/assets/images/Unyplus-phone-homepage.png'
